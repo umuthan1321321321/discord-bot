@@ -147,7 +147,7 @@ client.on('messageCreate', async message => {
                 } catch (err) {}
             }
 
-            await message.channel.send(`✅ İşlem tamamlandı! Toplam **${sayac}** kanalın/kategorinin özel izinleri sıfırlandı ve sadece `@everyone` bırakıldı.`);
+            await message.channel.send("✅ İşlem tamamlandı! Kanalların özel izinleri sıfırlandı ve sadece @everyone bırakıldı.");
         } catch (error) {
             console.error(error);
             await message.reply('İzinler sıfırlanırken bir hata oluştu.');
@@ -270,7 +270,7 @@ client.on('messageCreate', async message => {
         }
 
         const kuralMetni = 
-`1. ALLAH' A, Peygambere, dine, aileye, aşırı kaçan küfürler ve zorbalıklar kesinlikle yasaktır.
+`1. ALLAH' A, Peygambere, dine, aileye, aşırı kaçan küfürler ve zorbalıklar kesinlikle yasaktür.
 2. Rolünüzün üstündeki insanlara ve altındaki insanlara eşit davranmak zorundadır.
 3. +18 paylaşım, kızları rahatsız eden paylaşımlar ve kadın düşmanlığı yasak.
 4. Emir ve kurallara uymayanlar din konusunda kalıcı ban onun dışında uyarı alır 3. Uyarıda kişi banlanır. Fakat bunu fırsat bilip aynı hatayı yaptığı tespit edilirse kaç uyarı hakkı kalırsa kalsın banlanacaktır.
