@@ -27,6 +27,7 @@ const client = new Client({
 // Ayarlar ve Hafızalar
 const kufurEngelDurumu = new Map();
 const hosgeldinDurumu = new Map();
+const sayacDurumu = new Map();
 const merhabaDurumu = new Map();
 
 // Genişletilmiş Küfür/Argo Listesi
@@ -77,10 +78,12 @@ client.on('guildMemberAdd', async member => {
         }
     }
 
-    const sayacKanalID = '1566455836862054570';
-    const sayacKanal = guild.channels.cache.get(sayacKanalID);
-    if (sayacKanal) {
-        sayacKanal.send(`Hoş geldin, seninle beraber ${guild.memberCount} kişiyiz!`).catch(err => console.error("Sayaç mesajı atılamadı:", err));
+    if (sayacDurumu.get(guild.id)) {
+        const sayacKanalID = '1566455836862054570';
+        const sayacKanal = guild.channels.cache.get(sayacKanalID);
+        if (sayacKanal) {
+            sayacKanal.send(`Hoş geldin, seninle beraber ${guild.memberCount} kişiyiz!`).catch(err => console.error("Sayaç mesajı atılamadı:", err));
+        }
     }
 });
 
@@ -93,24 +96,14 @@ client.on('messageCreate', async message => {
     const guild = message.guild;
     const icerikKucuk = message.content.toLowerCase();
 
-    // 1. Merhaba / Selam Sohbet Yanıt Sistemi
-    if (merhabaDurumu.get(guild.id)) {
-        if (icerikKucuk.includes('selamün aleyküm') || icerikKucuk.includes('selamun aleykum') || icerikKucuk.includes('selamun aleyküm')) {
-            return message.reply(`Aleyküm Selam ${message.author}!`);
-        } else if (icerikKucuk.includes('selam') || icerikKucuk.includes('slm')) {
-            return message.reply(`Aleyküm Selam ${message.author}!`);
-        } else if (icerikKucuk.includes('merhaba') || icerikKucuk.includes('mrb')) {
-            return message.reply(`Merhaba ${message.author}!`);
-        } else if (icerikKucuk.includes('nasılsın') || icerikKucuk.includes('nasılsınız') || icerikKucuk.includes('naber')) {
-            return message.reply(`Allah'a şükür sen ${message.author}?`);
-        }
-    }
-
-    // 2. !yardım Komutu
+    // Önce Komutları Kontrol Et (Böylece !merhaba kapat yazıldığında bot yanlışlıkla sohbet yanıtını tetiklemez)
+    
+    // 1. !yardım Komutu
     if (command === '!yardım') {
         const yardimMesaji = `🤖 **Bot Komutları Menüsü**
 • \`!küfür-engel aç / kapat\` - Küfür ve argo engel sistemini yönetir.
 • \`!sunucuhoşgeldin aç / kapat\` - Yeni gelenlere özel kanal üzerinden hoş geldin mesajı atar.
+• \`!sayaç aç / kapat\` - Yeni üye katıldığında sayaç kanalına üye sayısını bildirir.
 • \`!merhaba aç / kapat\` - Selam, merhaba veya nasılsın diyenlere otomatik yanıt verir.
 • \`!sunucukur\` - Temel sunucu rollerini ve odalarını otomatik kurar.
 • \`!kanalizinsifirla\` - Roller silinmeden, tüm kanallardaki özel rol izinlerini sıfırlar ve sadece @everyone bırakır.
@@ -122,7 +115,7 @@ client.on('messageCreate', async message => {
         return message.reply(yardimMesaji);
     }
 
-    // 3. Kanalların İzinlerini Sıfırlama Komutu (!kanalizinsifirla)
+    // 2. Kanalların İzinlerini Sıfırlama Komutu (!kanalizinsifirla)
     if (command === '!kanalizinsifirla') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komut için Yönetici yetkisine sahip olmalısın.');
@@ -154,7 +147,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 4. Küfür Engel Sistemi (!küfür-engel aç / kapat)
+    // 3. Küfür Engel Sistemi (!küfür-engel aç / kapat)
     if (command === '!küfür-engel') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komutu kullanmak için Yönetici yetkisine sahip olmalısın.');
@@ -172,20 +165,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    if (kufurEngelDurumu.get(guild.id)) {
-        if (kufurKontrolEt(message.content)) {
-            try {
-                await message.delete();
-                const uyari = await message.channel.send(`${message.author}, bu sunucuda küfür ve argo kullanmak yasak! 🚫`);
-                setTimeout(() => uyari.delete().catch(() => {}), 4000);
-                return;
-            } catch (e) {
-                console.error("Mesaj silinemedi:", e);
-            }
-        }
-    }
-
-    // 5. Sunucu Hoş Geldin Sistemi (!sunucuhoşgeldin aç / kapat)
+    // 4. Sunucu Hoş Geldin Sistemi (!sunucuhoşgeldin aç / kapat)
     if (command === '!sunucuhoşgeldin') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
@@ -203,7 +183,25 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 6. Merhaba / Selam Sistemi (!merhaba aç / kapat)
+    // 5. Sayaç Sistemi Komutu (!sayaç aç / kapat)
+    if (command === '!sayaç') {
+        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
+        }
+
+        const secenek = args[0];
+        if (secenek === 'aç') {
+            sayacDurumu.set(guild.id, true);
+            return message.reply('✅ Sayaç sistemi **açıldı**!');
+        } else if (secenek === 'kapat') {
+            sayacDurumu.set(guild.id, false);
+            return message.reply('❌ Sayaç sistemi **kapatıldı**!');
+        } else {
+            return message.reply('Lütfen `!sayaç aç` veya `!sayaç kapat` şeklinde kullanın.');
+        }
+    }
+
+    // 6. Merhaba / Selam Sistemi Komutu (!merhaba aç / kapat)
     if (command === '!merhaba') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
@@ -270,8 +268,8 @@ client.on('messageCreate', async message => {
         }
 
         const kuralMetni = 
-`1. ALLAH' A, Peygambere, dine, aileye, aşırı kaçan küfürler ve zorbalıklar kesinlikle yasaktür.
-2. Rolünüzün üstündeki insanlara ve altındaki insanlara eşit davranmak zorundadır.
+`1. ALLAH' A, Peygambere, dine, aileye, aşırı kaçan küfürler ve zorbalıklar kesinlikle yasaktır.
+2. Rolünüzün üstündeki insanlara ve altındaki insanlara eşit davranmak zorundasınız.
 3. +18 paylaşım, kızları rahatsız eden paylaşımlar ve kadın düşmanlığı yasak.
 4. Emir ve kurallara uymayanlar din konusunda kalıcı ban onun dışında uyarı alır 3. Uyarıda kişi banlanır. Fakat bunu fırsat bilip aynı hatayı yaptığı tespit edilirse kaç uyarı hakkı kalırsa kalsın banlanacaktır.
 5. Kurallara uymak zorundadır saygı ve sevgi çerçevesinde güzelce muhabbet edin abartı olmayacak şekilde küfürde edebilirsiniz, Şimdiden eğlenceler.`;
@@ -339,6 +337,35 @@ client.on('messageCreate', async message => {
         } catch (error) {
             console.error(error);
             await message.reply('Kayıt işlemi sırasında bir hata oluştu.');
+        }
+    }
+
+    // --- Otomatik Sohbet Yanıt Sistemleri (Sadece sistemler AÇIKsa çalışır) ---
+
+    // Küfür Engel Kontrolü
+    if (kufurEngelDurumu.get(guild.id)) {
+        if (kufurKontrolEt(message.content)) {
+            try {
+                await message.delete();
+                const uyari = await message.channel.send(`${message.author}, bu sunucuda küfür ve argo kullanmak yasak! 🚫`);
+                setTimeout(() => uyari.delete().catch(() => {}), 4000);
+                return;
+            } catch (e) {
+                console.error("Mesaj silinemedi:", e);
+            }
+        }
+    }
+
+    // Merhaba / Selam Sohbet Yanıt Sistemi
+    if (merhabaDurumu.get(guild.id)) {
+        if (icerikKucuk.includes('selamün aleyküm') || icerikKucuk.includes('selamun aleykum') || icerikKucuk.includes('selamun aleyküm')) {
+            return message.reply(`Aleyküm Selam ${message.author}!`);
+        } else if (icerikKucuk.includes('selam') || icerikKucuk.includes('slm')) {
+            return message.reply(`Aleyküm Selam ${message.author}!`);
+        } else if (icerikKucuk.includes('merhaba') || icerikKucuk.includes('mrb')) {
+            return message.reply(`Merhaba ${message.author}!`);
+        } else if (icerikKucuk.includes('nasılsın') || icerikKucuk.includes('nasılsınız') || icerikKucuk.includes('naber')) {
+            return message.reply(`Allah'a şükür sen ${message.author}?`);
         }
     }
 });
