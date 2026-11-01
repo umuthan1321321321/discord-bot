@@ -108,7 +108,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 2. !yardım Komutu (Güncellendi)
+    // 2. !yardım Komutu
     if (command === '!yardım') {
         const yardimMesaji = `🤖 **Bot Komutları Menüsü**
 • \`!küfür-engel aç / kapat\` - Gelişmiş küfür ve argo engel sistemini yönetir.
@@ -132,25 +132,28 @@ client.on('messageCreate', async message => {
             return message.reply('Bu komut için Yönetici yetkisine sahip olmalısın.');
         }
 
-        await message.reply('⏳ Roller silinmeden, tüm kanalların özel izinleri temizlenip sadece `@everyone` kalacak şekilde sıfırlanıyor, lütfen bekleyin...');
+        await message.reply('⏳ Roller silinmeden, kanalların izinleri sıfırlanıyor...');
 
         try {
             const channels = guild.channels.cache;
             let sayac = 0;
 
             for (const [id, channel] of channels) {
-                // Kanallara ait özel rol/üye izinlerini temizle, geriye sadece sunucu varsayılanı (@everyone) kalsın
-                await channel.permissionOverwrites.set([
-                    {
-                        id: guild.id, // @everyone ID'si guild ID ile aynıdır
-                        allow: channel.permissionOverwrites.cache.get(guild.id)?.allow || [],
-                        deny: channel.permissionOverwrites.cache.get(guild.id)?.deny || []
-                    }
-                ]).catch(() => {});
-                sayac++;
+                try {
+                    await channel.permissionOverwrites.set([
+                        {
+                            id: guild.id,
+                            allow: channel.permissionOverwrites.cache.get(guild.id)?.allow || [],
+                            deny: channel.permissionOverwrites.cache.get(guild.id)?.deny || []
+                        }
+                    ]);
+                    sayac++;
+                } catch (err) {
+                    // Tek bir kanalda hata olsa bile döngünün patlamasını engeller
+                }
             }
 
-            await message.channel.send(`✅ İşlem tamamlandı! Toplam **${sayac}** kanalın/kategorinin özel izinleri sıfırlandı ve sadece `@everyone` bırakıldı (Rolleriniz silinmedi).`);
+            await message.channel.send(`✅ İşlem tamamlandı! Toplam **${sayac}** kanalın/kategorinin özel izinleri sıfırlandı ve sadece `@everyone` bırakıldı.`);
         } catch (error) {
             console.error(error);
             await message.reply('İzinler sıfırlanırken bir hata oluştu.');
@@ -286,7 +289,7 @@ client.on('messageCreate', async message => {
     // 9. Herkese Rol Verme Sistemi (!herkeserol @Rol)
     if (command === '!herkeserol') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return message.reply('Bu komut için yönetici yetkisine sahip olmalısın.');
+            return message.reply('Bu komut için Yönetici yetkisine sahip olmalısın.');
         }
 
         const hedefRol = message.mentions.roles.first();
@@ -374,7 +377,7 @@ client.on('messageCreate', async message => {
 
     if (command === '!sestençık') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return message.reply('This komut için yönetici yetkisi gerekiyor.');
+            return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
         }
 
         const connection = getVoiceConnection(guild.id);
