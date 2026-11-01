@@ -29,7 +29,7 @@ const client = new Client({
 const kufurEngelDurumu = new Map();
 const kufurListesi = [
     // Buraya istenen küfürler eklenebilir (örnek olması için temel küfürler konulabilir)
-    "amk", "aq", "orospu", "oç", "sik", "anan", "piç", "kahpe", "mal", "salak"
+   "Allah",  "amk", "aq", "orospu", "oç", "sik", "anan", "piç", "kahpe", "mal", "salak", "ananı"
 ];
 
 client.once('ready', () => {
