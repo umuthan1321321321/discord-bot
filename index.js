@@ -1,5 +1,4 @@
 const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits } = require('discord.js');
-const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
 const express = require('express');
 
 // --- Web Sunucusu (UptimeRobot İçin) ---
@@ -28,7 +27,6 @@ const client = new Client({
 // Ayarlar ve Hafızalar
 const kufurEngelDurumu = new Map();
 const hosgeldinDurumu = new Map();
-const sayacDurumu = new Map();
 const merhabaDurumu = new Map();
 
 // Genişletilmiş Küfür/Argo Listesi
@@ -111,7 +109,7 @@ client.on('messageCreate', async message => {
     // 2. !yardım Komutu
     if (command === '!yardım') {
         const yardimMesaji = `🤖 **Bot Komutları Menüsü**
-• \`!küfür-engel aç / kapat\` - Gelişmiş küfür ve argo engel sistemini yönetir.
+• \`!küfür-engel aç / kapat\` - Küfür ve argo engel sistemini yönetir.
 • \`!sunucuhoşgeldin aç / kapat\` - Yeni gelenlere özel kanal üzerinden hoş geldin mesajı atar.
 • \`!merhaba aç / kapat\` - Selam, merhaba veya nasılsın diyenlere otomatik yanıt verir.
 • \`!sunucukur\` - Temel sunucu rollerini ve odalarını otomatik kurar.
@@ -119,8 +117,6 @@ client.on('messageCreate', async message => {
 • \`!kuralkoy\` - Resmi kural metnini kutucuk içinde ve @everyone etiketiyle gönderir.
 • \`!herkeserol @Rol\` - Sunucudaki herkese etiketlenen rolü toplu şekilde dağıtır.
 • \`!kaydet @kullanici @Rol\` - Kullanıcının kayıtsız rolünü alıp yeni rolünü verir.
-• \`!sesegir #kanal\` - Botun belirtilen ses kanalında sabit kalmasını sağlar.
-• \`!sestençık\` - Botu ses kanalından çıkarır.
 • \`!yardım\` - Bu yardım menüsünü gösterir.`;
 
         return message.reply(yardimMesaji);
@@ -148,9 +144,7 @@ client.on('messageCreate', async message => {
                         }
                     ]);
                     sayac++;
-                } catch (err) {
-                    // Tek bir kanalda hata olsa bile döngünün patlamasını engeller
-                }
+                } catch (err) {}
             }
 
             await message.channel.send(`✅ İşlem tamamlandı! Toplam **${sayac}** kanalın/kategorinin özel izinleri sıfırlandı ve sadece `@everyone` bırakıldı.`);
@@ -345,47 +339,6 @@ client.on('messageCreate', async message => {
         } catch (error) {
             console.error(error);
             await message.reply('Kayıt işlemi sırasında bir hata oluştu.');
-        }
-    }
-
-    // 11. Ses Kanalı Sabitleme (!sesegir #kanal / !sestençık)
-    if (command === '!sesegir') {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
-        }
-
-        const sesKanalı = message.mentions.channels.first() || guild.channels.cache.get(args[0]);
-
-        if (!sesKanalı || sesKanalı.type !== ChannelType.GuildVoice) {
-            return message.reply('Lütfen geçerli bir ses kanalı etiketleyin veya ID yazın. Örn: `!sesegir #SesKanalı`');
-        }
-
-        try {
-            joinVoiceChannel({
-                channelId: sesKanalı.id,
-                guildId: guild.id,
-                adapterCreator: guild.voiceAdapterCreator,
-                selfDeaf: false,
-                selfMute: true
-            });
-            await message.reply(`🔊 Başarıyla **${sesKanalı.name}** ses kanalına giriş yapıldı ve sabitlendi!`);
-        } catch (error) {
-            console.error(error);
-            await message.reply('Ses kanalına bağlanırken bir hata oluştu.');
-        }
-    }
-
-    if (command === '!sestençık') {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
-        }
-
-        const connection = getVoiceConnection(guild.id);
-        if (connection) {
-            connection.destroy();
-            await message.reply('🛑 Ses kanalından çıkış yapıldı.');
-        } else {
-            await message.reply('Bot zaten herhangi bir ses kanalında değil.');
         }
     }
 });
