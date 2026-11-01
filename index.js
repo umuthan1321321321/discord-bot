@@ -1,4 +1,5 @@
 const { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
 const express = require('express');
 
 // --- Web Sunucusu (UptimeRobot İçin) ---
@@ -96,9 +97,7 @@ client.on('messageCreate', async message => {
     const guild = message.guild;
     const icerikKucuk = message.content.toLowerCase();
 
-    // Önce Komutları Kontrol Et (Böylece !merhaba kapat yazıldığında bot yanlışlıkla sohbet yanıtını tetiklemez)
-    
-    // 1. !yardım Komutu
+    // 1. !yardım Komutu (Ses komutları dahil hepsi eklendi)
     if (command === '!yardım') {
         const yardimMesaji = `🤖 **Bot Komutları Menüsü**
 • \`!küfür-engel aç / kapat\` - Küfür ve argo engel sistemini yönetir.
@@ -110,6 +109,8 @@ client.on('messageCreate', async message => {
 • \`!kuralkoy\` - Resmi kural metnini kutucuk içinde ve @everyone etiketiyle gönderir.
 • \`!herkeserol @Rol\` - Sunucudaki herkese etiketlenen rolü toplu şekilde dağıtır.
 • \`!kaydet @kullanici @Rol\` - Kullanıcının kayıtsız rolünü alıp yeni rolünü verir.
+• \`!sesegir #kanal\` - Botun belirtilen ses kanalında sabit kalmasını sağlar.
+• \`!sestençık\` - Botu ses kanalından çıkarır.
 • \`!yardım\` - Bu yardım menüsünü gösterir.`;
 
         return message.reply(yardimMesaji);
@@ -269,7 +270,7 @@ client.on('messageCreate', async message => {
 
         const kuralMetni = 
 `1. ALLAH' A, Peygambere, dine, aileye, aşırı kaçan küfürler ve zorbalıklar kesinlikle yasaktır.
-2. Rolünüzün üstündeki insanlara ve altındaki insanlara eşit davranmak zorundasınız.
+2. Rolünüzün üstündeki insanlara ve altındaki insanlara eşit davranmak zorundadır.
 3. +18 paylaşım, kızları rahatsız eden paylaşımlar ve kadın düşmanlığı yasak.
 4. Emir ve kurallara uymayanlar din konusunda kalıcı ban onun dışında uyarı alır 3. Uyarıda kişi banlanır. Fakat bunu fırsat bilip aynı hatayı yaptığı tespit edilirse kaç uyarı hakkı kalırsa kalsın banlanacaktır.
 5. Kurallara uymak zorundadır saygı ve sevgi çerçevesinde güzelce muhabbet edin abartı olmayacak şekilde küfürde edebilirsiniz, Şimdiden eğlenceler.`;
@@ -340,7 +341,48 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // --- Otomatik Sohbet Yanıt Sistemleri (Sadece sistemler AÇIKsa çalışır) ---
+    // 11. Ses Kanalı Sabitleme (!sesegir #kanal / !sestençık)
+    if (command === '!sesegir') {
+        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
+        }
+
+        const sesKanalı = message.mentions.channels.first() || guild.channels.cache.get(args[0]);
+
+        if (!sesKanalı || sesKanalı.type !== ChannelType.GuildVoice) {
+            return message.reply('Lütfen geçerli bir ses kanalı etiketleyin veya ID yazın. Örn: `!sesegir #SesKanalı`');
+        }
+
+        try {
+            joinVoiceChannel({
+                channelId: sesKanalı.id,
+                guildId: guild.id,
+                adapterCreator: guild.voiceAdapterCreator,
+                selfDeaf: false,
+                selfMute: true
+            });
+            await message.reply(`🔊 Başarıyla **${sesKanalı.name}** ses kanalına giriş yapıldı ve sabitlendi!`);
+        } catch (error) {
+            console.error(error);
+            await message.reply('Ses kanalına bağlanırken bir hata oluştu.');
+        }
+    }
+
+    if (command === '!sestençık') {
+        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
+        }
+
+        const connection = getVoiceConnection(guild.id);
+        if (connection) {
+            connection.destroy();
+            await message.reply('🛑 Ses kanalından çıkış yapıldı.');
+        } else {
+            await message.reply('Bot zaten herhangi bir ses kanalında değil.');
+        }
+    }
+
+    // --- Otomatik Sohbet Yanıt Sistemleri ---
 
     // Küfür Engel Kontrolü
     if (kufurEngelDurumu.get(guild.id)) {
