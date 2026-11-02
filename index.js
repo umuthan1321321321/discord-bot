@@ -32,19 +32,24 @@ const hosgeldinDurumu = new Map();
 const sayacDurumu = new Map();
 const merhabaDurumu = new Map();
 
-// Küfür/Argo Listesi (Kelime başı/sonu tam eşleşme veya akıllı kök kontrolü ile "bisiklet" gibi kelimeler engellenmez)
+// Küfür/Argo Listesi ("sik" kelimesi eklendi, ancak akıllı filtre "bisiklet" gibi kelimeleri korur)
 const kufurListesi = [
-    "amk", "aq", "orospu", "oç", "sikerim", "anan", "piç", "kahpe", 
+    "amk", "aq", "orospu", "oç", "sik", "sikerim", "anan", "piç", "kahpe", 
     "göt", "yarrak", "amcık", "orospi", "o.ç", "siktir", "sikik", "ananı", 
     "sg", "ibne", "yarak", "orospuçocuğu"
 ];
 
 function kufurKontrolEt(metin) {
-    const kelimeler = metin.toLowerCase().replace(/[^a-zçğİıöşü\s]/g, '').split(/\s+/);
+    const temizMetin = metin.toLowerCase();
+    const kelimeler = temizMetin.replace(/[^a-zçğİıöşü\s]/g, '').split(/\s+/);
+    
     return kelimeler.some(kelime => {
-        // "bisiklet" gibi kelimeleri korumak için tam eşleşme veya belirli argo kalıplar aranır
-        if (kelime === "bisiklet" || kelime === "sikke" || kelime === "sıkıntı") return false;
-        return kufurListesi.some(kufur => kelime === kufur || (kelime.includes(kufur) && kufur.length > 3));
+        // "bisiklet", "sıkıntı", "sikke" gibi masum kelimeleri kesinlikle engelleme
+        if (kelime === "bisiklet" || kelime === "bisikletler" || kelime.includes("sıkıntı") || kelime.includes("sikke")) {
+            return false;
+        }
+        // Küfür listesindeki kelimelerle tam veya içeren eşleşme kontrolü
+        return kufurListesi.some(kufur => kelime === kufur || (kelime.includes(kufur) && kufur.length > 2));
     });
 }
 
@@ -166,7 +171,7 @@ client.on('messageCreate', async message => {
     // 3. Küfür Engel Sistemi (!küfür-engel aç / kapat)
     if (command === '!küfür-engel') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return message.reply('Bu komutu kullanmak için Yönetici yetkisine sahip olmalısın.');
+            return message.reply('Bu komut için Yönetici yetkisine sahip olmalısın.');
         }
 
         const secenek = args[0];
@@ -503,7 +508,7 @@ client.on('messageCreate', async message => {
         
         const tarihFormatli = `${String(katilimTarihi.getDate()).padStart(2, '0')}/${String(katilimTarihi.getMonth() + 1).padStart(2, '0')}/${katilimTarihi.getFullYear()} - ${String(katilimTarihi.getHours()).padStart(2, '0')}:${String(katilimTarihi.getMinutes()).padStart(2, '0')}`;
 
-        await message.channel.send(`📌 ${hedefUye} Kullanıcısı şu saatte: **${tarihFormatli}** sunucuya katıldı, **${gunFarki}** gündür sunucuda. Onu aramızda görmekten mutluyiz!`);
+        await message.channel.send(`📌 ${hedefUye} Kullanıcısı şu saatte: **${tarihFormatli}** sunucuya katıldı, **${gunFarki}** gündür sunucuda. Onu aramızda görmekten mutluyuz!`);
     }
 
     // 18. Ses Kanalı Sabitleme (!sesegir #kanal / !sestençık)
