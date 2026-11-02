@@ -97,7 +97,7 @@ client.on('messageCreate', async message => {
     const guild = message.guild;
     const icerikKucuk = message.content.toLowerCase();
 
-    // 1. !yardım Komutu (Ses komutları dahil hepsi eklendi)
+    // 1. !yardım Komutu
     if (command === '!yardım') {
         const yardimMesaji = `🤖 **Bot Komutları Menüsü**
 • \`!küfür-engel aç / kapat\` - Küfür ve argo engel sistemini yönetir.
@@ -108,7 +108,8 @@ client.on('messageCreate', async message => {
 • \`!kanalizinsifirla\` - Roller silinmeden, tüm kanallardaki özel rol izinlerini sıfırlar ve sadece @everyone bırakır.
 • \`!kuralkoy\` - Resmi kural metnini kutucuk içinde ve @everyone etiketiyle gönderir.
 • \`!herkeserol @Rol\` - Sunucudaki herkese etiketlenen rolü toplu şekilde dağıtır.
-• \`!kaydet @kullanici @Rol\` - Kullanıcının kayıtsız rolünü alıp yeni rolünü verir.
+• \`!kaydet @kullanici @Rol\` - Kullanıcının kayıtsız rolünü alır, yeni rolünü ve @Üye rolünü verir.
+• \`!roldeğiş @kullanici @rol\` - Kullanıcının mevcut rolünü değiştirerek yeni rolü verir.
 • \`!sesegir #kanal\` - Botun belirtilen ses kanalında sabit kalmasını sağlar.
 • \`!sestençık\` - Botu ses kanalından çıkarır.
 • \`!yardım\` - Bu yardım menüsünü gösterir.`;
@@ -230,7 +231,7 @@ client.on('messageCreate', async message => {
 
         try {
             const yetkiliRol = await guild.roles.create({ name: '👑 • Yönetici', color: '#FF0000', permissions: [PermissionFlagsBits.Administrator] });
-            const uyeRol = await guild.roles.create({ name: '👥 • Üye', color: '#00FF00' });
+            const uyeRol = await guild.roles.create({ name: 'Üye', color: '#00FF00' });
             const kayitsizRol = await guild.roles.create({ name: 'Kayıtsız', color: '#808080', permissions: [] });
 
             const kategori = await guild.channels.create({
@@ -310,7 +311,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 10. Kayıt Sistemi (!kaydet @kullanici @Rol)
+    // 10. Kayıt Sistemi (!kaydet @kullanici @Rol) -> Otomatik Üye Rolü ve Özel Kanal Mesajı Dahil
     if (command === '!kaydet') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
             return message.reply('Bu komutu kullanmak için yetkin yok.');
@@ -320,28 +321,67 @@ client.on('messageCreate', async message => {
         const verilecekRol = message.mentions.roles.first();
 
         if (!hedefUye) {
-            return message.reply('Lütfen kaydedilecek kişiyi etiketleyin. Örn: `!kaydet @kullanici @Uye`');
+            return message.reply('Lütfen kaydedilecek kişiyi etiketleyin. Örn: `!kaydet @kullanici @Rol`');
         }
 
         try {
+            // Kayıtsız rolünü al
             const kayitsizRol = guild.roles.cache.find(r => r.name === 'Kayıtsız');
             if (kayitsizRol && hedefUye.roles.cache.has(kayitsizRol.id)) {
                 await hedefUye.roles.remove(kayitsizRol);
             }
 
+            // Belirtilen yeni rolü ver
             if (verilecekRol) {
                 await hedefUye.roles.add(verilecekRol);
-                await message.channel.send(`✨ ${hedefUye} başarıyla kaydedildi ve ${verilecekRol.name} rolü verildi!`);
-            } else {
-                await message.channel.send(`✨ ${hedefUye} kaydedildi (Rol belirtilmediği için sadece kayıtsız rolü alındı).`);
             }
+
+            // Otomatik "Üye" rolünü bul ve ekle
+            const uyeRol = guild.roles.cache.find(r => r.name === 'Üye');
+            if (uyeRol) {
+                await hedefUye.roles.add(uyeRol);
+            }
+
+            await message.channel.send(`✨ ${hedefUye} başarıyla kaydedildi!`);
+
+            // 1564305393880928328 idli kanala özel karşılama mesajı gönder
+            const hedefKanalID = '1564305393880928328';
+            const ozelKanal = guild.channels.cache.get(hedefKanalID);
+            if (ozelKanal) {
+                await ozelKanal.send(`Hoş geldin ${hedefUye} nasılsın?`);
+            }
+
         } catch (error) {
             console.error(error);
             await message.reply('Kayıt işlemi sırasında bir hata oluştu.');
         }
     }
 
-    // 11. Ses Kanalı Sabitleme (!sesegir #kanal / !sestençık)
+    // 11. Rol Değiş Sistemi (!roldeğiş @kullanici @rol)
+    if (command === '!roldeğiş') {
+        if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
+            return message.reply('Bu komutu kullanmak için yetkin yok.');
+        }
+
+        const hedefUye = message.mentions.members.first();
+        const yeniRol = message.mentions.roles.first();
+
+        if (!hedefUye || !yeniRol) {
+            return message.reply('Lütfen kullanıcıyı ve verilecek yeni rolü etiketleyin. Örn: `!roldeğiş @kullanici @rol`');
+        }
+
+        try {
+            // Kullanıcının mevcut rollerinden @everyone ve bot rolleri dışındakileri alabiliriz veya doğrudan yeni rolü ekleyebiliriz.
+            // Kullanıcının üstündeki diğer özel rolleri temizleyip yenisini vermek için:
+            await hedefUye.roles.add(yeniRol);
+            await message.channel.send(`✅ ${hedefUye} adlı kullanıcıya başarıyla ${yeniRol} rolü eklendi!`);
+        } catch (error) {
+            console.error(error);
+            await message.reply('Rol değiştirilirken bir hata oluştu.');
+        }
+    }
+
+    // 12. Ses Kanalı Sabitleme (!sesegir #kanal / !sestençık)
     if (command === '!sesegir') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
