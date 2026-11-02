@@ -27,20 +27,25 @@ const client = new Client({
 
 // Ayarlar ve Hafızalar
 const kufurEngelDurumu = new Map();
+const reklamEngelDurumu = new Map();
 const hosgeldinDurumu = new Map();
 const sayacDurumu = new Map();
 const merhabaDurumu = new Map();
 
-// Genişletilmiş Küfür/Argo Listesi
+// Küfür/Argo Listesi (Kelime başı/sonu tam eşleşme veya akıllı kök kontrolü ile "bisiklet" gibi kelimeler engellenmez)
 const kufurListesi = [
-    "amk", "aq", "orospu", "oç", "sik", "sikerim", "anan", "piç", "kahpe", 
+    "amk", "aq", "orospu", "oç", "sikerim", "anan", "piç", "kahpe", 
     "göt", "yarrak", "amcık", "orospi", "o.ç", "siktir", "sikik", "ananı", 
     "sg", "ibne", "yarak", "orospuçocuğu"
 ];
 
 function kufurKontrolEt(metin) {
-    const temizMetin = metin.toLowerCase().replace(/[^a-zçğİıöşü]/g, '');
-    return kufurListesi.some(kufur => temizMetin.includes(kufur));
+    const kelimeler = metin.toLowerCase().replace(/[^a-zçğİıöşü\s]/g, '').split(/\s+/);
+    return kelimeler.some(kelime => {
+        // "bisiklet" gibi kelimeleri korumak için tam eşleşme veya belirli argo kalıplar aranır
+        if (kelime === "bisiklet" || kelime === "sikke" || kelime === "sıkıntı") return false;
+        return kufurListesi.some(kufur => kelime === kufur || (kelime.includes(kufur) && kufur.length > 3));
+    });
 }
 
 client.once('ready', () => {
@@ -79,12 +84,9 @@ client.on('guildMemberAdd', async member => {
         }
     }
 
-    // Sayaç Sistemi (İstediğin formatta güncellendi)
     if (sayacDurumu.get(guild.id)) {
         const sayacKanalID = '1566455836862054570';
         const sayacKanal = guild.channels.cache.get(sayacKanalID);
-        
-        // Sohbet kanalını isme göre bulup etiketliyoruz
         const sohbetKanali = guild.channels.cache.find(c => c.name.includes('sohbet') && c.type === ChannelType.GuildText);
         const sohbetEtiket = sohbetKanali ? `<#${sohbetKanali.id}>` : '#sohbet';
 
@@ -107,6 +109,7 @@ client.on('messageCreate', async message => {
     if (command === '!yardım') {
         const yardimMesaji = `🤖 **Bot Komutları Menüsü**
 • \`!küfür-engel aç / kapat\` - Küfür ve argo engel sistemini yönetir.
+• \`!reklamengel aç / kapat\` - Sunucu davet linklerini ve web sitelerini engeller.
 • \`!sunucuhoşgeldin aç / kapat\` - Yeni gelenlere özel kanal üzerinden hoş geldin mesajı atar.
 • \`!sayaç aç / kapat\` - Yeni üye katıldığında sayaç kanalına üye sayısını ve sohbet etiketini bildirir.
 • \`!merhaba aç / kapat\` - Selam, merhaba veya nasılsın diyenlere otomatik yanıt verir.
@@ -116,6 +119,11 @@ client.on('messageCreate', async message => {
 • \`!herkeserol @Rol\` - Sunucudaki herkese etiketlenen rolü toplu şekilde dağıtır.
 • \`!kaydet @kullanici @Rol\` - Kullanıcının kayıtsız rolünü alır, yeni rolünü ve @Üye rolünü verir.
 • \`!roldeğiş @kullanici @rol\` - Kullanıcının mevcut rolünü değiştirerek yeni rolü verir.
+• \`!ban @kullanici [sebep]\` - Kullanıcıyı sunucudan kalıcı olarak yasaklar.
+• \`!kick @kullanici [sebep]\` - Kullanıcıyı sunucudan atar.
+• \`!mute @kullanici [dakika] [sebep]\` - Kullanıcıyı metin kanallarında susturur.
+• \`!temizle [1-100]\` - Kanaldaki belirtilen miktardaki mesajı toplu siler.
+• \`!üyebilgi @kullanici\` - Kullanıcının sunucuya katılım tarihini ve süresini gösterir.
 • \`!sesegir #kanal\` - Botun belirtilen ses kanalında sabit kalmasını sağlar.
 • \`!sestençık\` - Botu ses kanalından çıkarır.
 • \`!yardım\` - Bu yardım menüsünü gösterir.`;
@@ -173,7 +181,25 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 4. Sunucu Hoş Geldin Sistemi (!sunucuhoşgeldin aç / kapat)
+    // 4. Reklam Engel Sistemi (!reklamengel aç / kapat)
+    if (command === '!reklamengel') {
+        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return message.reply('Bu komut için Yönetici yetkisine sahip olmalısın.');
+        }
+
+        const secenek = args[0];
+        if (secenek === 'aç') {
+            reklamEngelDurumu.set(guild.id, true);
+            return message.reply('✅ Reklam engel sistemi **açıldı**!');
+        } else if (secenek === 'kapat') {
+            reklamEngelDurumu.set(guild.id, false);
+            return message.reply('❌ Reklam engel sistemi **kapatıldı**!');
+        } else {
+            return message.reply('Lütfen `!reklamengel aç` veya `!reklamengel kapat` şeklinde kullanın.');
+        }
+    }
+
+    // 5. Sunucu Hoş Geldin Sistemi (!sunucuhoşgeldin aç / kapat)
     if (command === '!sunucuhoşgeldin') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
@@ -191,7 +217,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 5. Sayaç Sistemi Komutu (!sayaç aç / kapat)
+    // 6. Sayaç Sistemi Komutu (!sayaç aç / kapat)
     if (command === '!sayaç') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
@@ -209,7 +235,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 6. Merhaba / Selam Sistemi Komutu (!merhaba aç / kapat)
+    // 7. Merhaba / Selam Sistemi Komutu (!merhaba aç / kapat)
     if (command === '!merhaba') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
@@ -227,7 +253,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 7. Sunucu Kurulum Sistemi (!sunucukur)
+    // 8. Sunucu Kurulum Sistemi (!sunucukur)
     if (command === '!sunucukur') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komutu kullanmak için Yönetici yetkisine sahip olmalısın.');
@@ -269,7 +295,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 8. Kural Metni Gönderme (!kuralkoy)
+    // 9. Kural Metni Gönderme (!kuralkoy)
     if (command === '!kuralkoy') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
@@ -286,7 +312,7 @@ client.on('messageCreate', async message => {
         await message.delete().catch(() => {});
     }
 
-    // 9. Herkese Rol Verme Sistemi (!herkeserol @Rol)
+    // 10. Herkese Rol Verme Sistemi (!herkeserol @Rol)
     if (command === '!herkeserol') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komut için Yönetici yetkisine sahip olmalısın.');
@@ -317,7 +343,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 10. Kayıt Sistemi (!kaydet @kullanici @Rol)
+    // 11. Kayıt Sistemi (!kaydet @kullanici @Rol)
     if (command === '!kaydet') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
             return message.reply('Bu komutu kullanmak için yetkin yok.');
@@ -359,7 +385,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 11. Rol Değiş Sistemi (!roldeğiş @kullanici @rol)
+    // 12. Rol Değiş Sistemi (!roldeğiş @kullanici @rol)
     if (command === '!roldeğiş') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
             return message.reply('Bu komutu kullanmak için yetkin yok.');
@@ -381,7 +407,106 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 12. Ses Kanalı Sabitleme (!sesegir #kanal / !sestençık)
+    // 13. Ban Sistemi (!ban @kullanici sebep)
+    if (command === '!ban') {
+        if (!message.member.permissions.has(PermissionFlagsBits.BanMembers)) {
+            return message.reply('Bu komut için Üyeleri Yasakla yetkisine sahip olmalısın.');
+        }
+
+        const hedefUye = message.mentions.members.first();
+        const sebep = args.slice(1).join(' ') || 'Belirtilmedi';
+
+        if (!hedefUye) {
+            return message.reply('Lütfen banlanacak kullanıcıyı etiketleyin. Örn: `!ban @kullanici küfür`');
+        }
+
+        try {
+            await hedefUye.ban({ reason: sebep });
+            await message.channel.send(`🔨 **${hedefUye.user.tag}** sunucudan yasaklandı! Sebep: *${sebep}*`);
+        } catch (error) {
+            console.error(error);
+            await message.reply('Kullanıcı banlanırken bir hata oluştu (Botun yetkisi yetersiz olabilir).');
+        }
+    }
+
+    // 14. Kick Sistemi (!kick @kullanici sebep)
+    if (command === '!kick') {
+        if (!message.member.permissions.has(PermissionFlagsBits.KickMembers)) {
+            return message.reply('Bu komut için Üyeleri At yetkisine sahip olmalısın.');
+        }
+
+        const hedefUye = message.mentions.members.first();
+        const sebep = args.slice(1).join(' ') || 'Belirtilmedi';
+
+        if (!hedefUye) {
+            return message.reply('Lütfen atılacak kullanıcıyı etiketleyin. Örn: `!kick @kullanici`');
+        }
+
+        try {
+            await hedefUye.kick(sebep);
+            await message.channel.send(`👢 **${hedefUye.user.tag}** sunucudan atıldı! Sebep: *${sebep}*`);
+        } catch (error) {
+            console.error(error);
+            await message.reply('Kullanıcı atılırken bir hata oluştu.');
+        }
+    }
+
+    // 15. Mute Sistemi (!mute @kullanici dakika)
+    if (command === '!mute') {
+        if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+            return message.reply('Bu komut için Üyeleri Zaman Aşımına Uğrat yetkin yok.');
+        }
+
+        const hedefUye = message.mentions.members.first();
+        const dakika = parseInt(args[1]) || 5;
+
+        if (!hedefUye) {
+            return message.reply('Lütfen susturulacak kullanıcıyı etiketleyin. Örn: `!mute @kullanici 10`');
+        }
+
+        try {
+            await hedefUye.timeout(dakika * 60 * 1000, 'Mute komutu kullanıldı.');
+            await message.channel.send(`🔇 **${hedefUye}** adlı kullanıcı ${dakika} dakika süreyle susturuldu.`);
+        } catch (error) {
+            console.error(error);
+            await message.reply('Kullanıcı susturulurken hata oluştu.');
+        }
+    }
+
+    // 16. Mesaj Temizleme Sistemi (!temizle 50)
+    if (command === '!temizle') {
+        if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+            return message.reply('Bu komut için Mesajları Yönet yetkisine sahip olmalısın.');
+        }
+
+        const miktar = parseInt(args[0]);
+        if (!miktar || miktar < 1 || miktar > 100) {
+            return message.reply('Lütfen 1 ile 100 arasında bir sayı belirtin. Örn: `!temizle 50`');
+        }
+
+        try {
+            await message.channel.bulkDelete(miktar, true);
+            const bilgi = await message.channel.send(`🧹 Başarıyla **${miktar}** adet mesaj silindi.`);
+            setTimeout(() => bilgi.delete().catch(() => {}), 3000);
+        } catch (error) {
+            console.error(error);
+            await message.reply('Mesajlar silinirken bir hata oluştu (14 günden eski mesajlar silinemez).');
+        }
+    }
+
+    // 17. Üye Bilgi Sistemi (!üyebilgi @üye)
+    if (command === '!üyebilgi') {
+        const hedefUye = message.mentions.members.first() || message.member;
+        
+        const katilimTarihi = hedefUye.joinedAt;
+        const gunFarki = Math.floor((Date.now() - katilimTarihi.getTime()) / (1000 * 60 * 60 * 24));
+        
+        const tarihFormatli = `${String(katilimTarihi.getDate()).padStart(2, '0')}/${String(katilimTarihi.getMonth() + 1).padStart(2, '0')}/${katilimTarihi.getFullYear()} - ${String(katilimTarihi.getHours()).padStart(2, '0')}:${String(katilimTarihi.getMinutes()).padStart(2, '0')}`;
+
+        await message.channel.send(`📌 ${hedefUye} Kullanıcısı şu saatte: **${tarihFormatli}** sunucuya katıldı, **${gunFarki}** gündür sunucuda. Onu aramızda görmekten mutluyiz!`);
+    }
+
+    // 18. Ses Kanalı Sabitleme (!sesegir #kanal / !sestençık)
     if (command === '!sesegir') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('Bu komut için yönetici yetkisi gerekiyor.');
@@ -422,8 +547,23 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // --- Otomatik Sohbet Yanıt Sistemleri ---
+    // --- Otomatik Sohbet Filtreleme ve Yanıt Sistemleri ---
 
+    // 1. Reklam Engel Sistemi (Eğer açıksa)
+    if (reklamEngelDurumu.get(guild.id)) {
+        if (message.content.includes('discord.gg/') || message.content.includes('https://') || message.content.includes('http://')) {
+            try {
+                await message.delete();
+                const uyari = await message.channel.send(`${message.author}, bu sunucuda reklam yapmak yasak! 🚫`);
+                setTimeout(() => uyari.delete().catch(() => {}), 4000);
+                return;
+            } catch (e) {
+                console.error("Reklam mesajı silinemedi:", e);
+            }
+        }
+    }
+
+    // 2. Küfür Engel Kontrolü (Eğer açıksa)
     if (kufurEngelDurumu.get(guild.id)) {
         if (kufurKontrolEt(message.content)) {
             try {
@@ -432,11 +572,12 @@ client.on('messageCreate', async message => {
                 setTimeout(() => uyari.delete().catch(() => {}), 4000);
                 return;
             } catch (e) {
-                console.error("Mesaj silinemedi:", e);
+                console.error("Küfür mesajı silinemedi:", e);
             }
         }
     }
 
+    // 3. Merhaba / Selam Sohbet Yanıt Sistemi (Eğer açıksa)
     if (merhabaDurumu.get(guild.id)) {
         if (icerikKucuk.includes('selamün aleyküm') || icerikKucuk.includes('selamun aleykum') || icerikKucuk.includes('selamun aleyküm')) {
             return message.reply(`Aleyküm Selam ${message.author}!`);
