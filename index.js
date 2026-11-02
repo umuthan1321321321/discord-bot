@@ -79,11 +79,17 @@ client.on('guildMemberAdd', async member => {
         }
     }
 
+    // Sayaç Sistemi (İstediğin formatta güncellendi)
     if (sayacDurumu.get(guild.id)) {
         const sayacKanalID = '1566455836862054570';
         const sayacKanal = guild.channels.cache.get(sayacKanalID);
+        
+        // Sohbet kanalını isme göre bulup etiketliyoruz
+        const sohbetKanali = guild.channels.cache.find(c => c.name.includes('sohbet') && c.type === ChannelType.GuildText);
+        const sohbetEtiket = sohbetKanali ? `<#${sohbetKanali.id}>` : '#sohbet';
+
         if (sayacKanal) {
-            sayacKanal.send(`Hoş geldin, seninle beraber ${guild.memberCount} kişiyiz!`).catch(err => console.error("Sayaç mesajı atılamadı:", err));
+            sayacKanal.send(`Hoş geldin ${member} seninle beraber ${guild.memberCount} kişiyiz! Hadi durma sohbete ${sohbetEtiket}`).catch(err => console.error("Sayaç mesajı atılamadı:", err));
         }
     }
 });
@@ -102,7 +108,7 @@ client.on('messageCreate', async message => {
         const yardimMesaji = `🤖 **Bot Komutları Menüsü**
 • \`!küfür-engel aç / kapat\` - Küfür ve argo engel sistemini yönetir.
 • \`!sunucuhoşgeldin aç / kapat\` - Yeni gelenlere özel kanal üzerinden hoş geldin mesajı atar.
-• \`!sayaç aç / kapat\` - Yeni üye katıldığında sayaç kanalına üye sayısını bildirir.
+• \`!sayaç aç / kapat\` - Yeni üye katıldığında sayaç kanalına üye sayısını ve sohbet etiketini bildirir.
 • \`!merhaba aç / kapat\` - Selam, merhaba veya nasılsın diyenlere otomatik yanıt verir.
 • \`!sunucukur\` - Temel sunucu rollerini ve odalarını otomatik kurar.
 • \`!kanalizinsifirla\` - Roller silinmeden, tüm kanallardaki özel rol izinlerini sıfırlar ve sadece @everyone bırakır.
@@ -311,7 +317,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 10. Kayıt Sistemi (!kaydet @kullanici @Rol) -> Otomatik Üye Rolü ve Özel Kanal Mesajı Dahil
+    // 10. Kayıt Sistemi (!kaydet @kullanici @Rol)
     if (command === '!kaydet') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
             return message.reply('Bu komutu kullanmak için yetkin yok.');
@@ -325,18 +331,15 @@ client.on('messageCreate', async message => {
         }
 
         try {
-            // Kayıtsız rolünü al
             const kayitsizRol = guild.roles.cache.find(r => r.name === 'Kayıtsız');
             if (kayitsizRol && hedefUye.roles.cache.has(kayitsizRol.id)) {
                 await hedefUye.roles.remove(kayitsizRol);
             }
 
-            // Belirtilen yeni rolü ver
             if (verilecekRol) {
                 await hedefUye.roles.add(verilecekRol);
             }
 
-            // Otomatik "Üye" rolünü bul ve ekle
             const uyeRol = guild.roles.cache.find(r => r.name === 'Üye');
             if (uyeRol) {
                 await hedefUye.roles.add(uyeRol);
@@ -344,7 +347,6 @@ client.on('messageCreate', async message => {
 
             await message.channel.send(`✨ ${hedefUye} başarıyla kaydedildi!`);
 
-            // 1564305393880928328 idli kanala özel karşılama mesajı gönder
             const hedefKanalID = '1564305393880928328';
             const ozelKanal = guild.channels.cache.get(hedefKanalID);
             if (ozelKanal) {
@@ -371,8 +373,6 @@ client.on('messageCreate', async message => {
         }
 
         try {
-            // Kullanıcının mevcut rollerinden @everyone ve bot rolleri dışındakileri alabiliriz veya doğrudan yeni rolü ekleyebiliriz.
-            // Kullanıcının üstündeki diğer özel rolleri temizleyip yenisini vermek için:
             await hedefUye.roles.add(yeniRol);
             await message.channel.send(`✅ ${hedefUye} adlı kullanıcıya başarıyla ${yeniRol} rolü eklendi!`);
         } catch (error) {
@@ -424,7 +424,6 @@ client.on('messageCreate', async message => {
 
     // --- Otomatik Sohbet Yanıt Sistemleri ---
 
-    // Küfür Engel Kontrolü
     if (kufurEngelDurumu.get(guild.id)) {
         if (kufurKontrolEt(message.content)) {
             try {
@@ -438,7 +437,6 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // Merhaba / Selam Sohbet Yanıt Sistemi
     if (merhabaDurumu.get(guild.id)) {
         if (icerikKucuk.includes('selamün aleyküm') || icerikKucuk.includes('selamun aleykum') || icerikKucuk.includes('selamun aleyküm')) {
             return message.reply(`Aleyküm Selam ${message.author}!`);
