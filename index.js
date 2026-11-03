@@ -499,7 +499,7 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 17. Üye Bilgi Sistemi (!üyebilgi @üye)
+  
     if (command === '!üyebilgi') {
         const hedefUye = message.mentions.members.first() || message.member;
         
